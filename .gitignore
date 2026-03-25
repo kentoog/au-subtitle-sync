@@ -22,6 +22,9 @@ Desktop.ini
 *copy*.py
 *.bak
 *.tmp
-
-# Data files (LRC/Samples)
-*.lrc
+测试信号*.py
+# 之前包含的推送脚本 (GitHub 用)
+push_to_gitee.py
+# 其他冗余
+*.docx
+~$*.docx
