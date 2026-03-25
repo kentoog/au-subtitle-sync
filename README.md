@@ -4,7 +4,7 @@
 
 由于 Adobe Audition 本身对实时字幕显示的支持有限，本项目通过 **Mackie Control (MIDI)** 协议将 AU 的播放头时间实时同步到外部 Python 悬浮看板中，从而实现高效率的配音、有声书录制或后期字幕校对。
 
-![演示图](https://your-image-url-here.png) *(此处可添加应用运行截图)*
+
 
 ## ✨ 核心特性
 
