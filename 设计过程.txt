@@ -1,0 +1,153 @@
+这是一个非常高效的复盘过程。我们将这个“Adobe Audition 实时字幕同步方案”命名为 **“MIDI-Mackie 桥接方案”**。它比传统的插件开发更稳定，且具备跨版本兼容性。
+
+以下是完整的安装与配置手册：
+
+---
+
+## 🛠️ 第一部分：基础设施搭建（环境准备）
+
+### 1. 安装虚拟 MIDI 驱动
+
+由于 Audition 不能直接向 Python 脚本发送数据，需要一个“虚拟管道”。
+
+* **软件：** 下载并安装 **loopMIDI**。
+* **配置：** 打开 loopMIDI，点击 `+` 创建一个新端口，命名为 `AU_MTC_OUT`。
+
+### 2. Python 环境配置
+
+确保安装了 Python 3.10+，并运行以下命令安装必要的库：
+
+```bash
+pip install mido python-rtmidi PyQt6
+
+```
+
+---
+
+## 🎚️ 第二部分：Adobe Audition 内部配置
+
+这是让 Audition “开口说话”的关键步骤。
+
+1. **打开设置：** `编辑 (Edit)` -> `首选项 (Preferences)` -> `操纵面 (Control Surface)`。
+2. **添加设备：** * 点击 **“添加 (Add)”**，在设备类中选择 **Mackie Control**。
+3. **配置端口：**
+* **MIDI 输入：** 保持“无 (None)”。
+* **MIDI 输出：** 必须选择刚才在 loopMIDI 中创建的 **`AU_MTC_OUT`**。
+
+
+4. **确认反馈：** * 点击“确定”退出。此时当你播放音频时，Audition 会自动将时间轴的数字作为 MIDI 信号广播出去。
+
+---
+
+## 💻 第三部分：同步程序核心代码
+
+将以下代码保存为 `AU_LRC_Sync.py`。这个版本整合了你要求的**置顶窗口、LRC 解析以及自动滚动逻辑**。
+
+```python
+import sys, re, mido
+from PyQt6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QLabel, 
+                             QPushButton, QFileDialog, QScrollArea)
+from PyQt6.QtCore import Qt, QThread, pyqtSignal
+
+class MidiMonitor(QThread):
+    time_signal = pyqtSignal(float)
+    def run(self):
+        # 寻找 loopMIDI 端口
+        port_name = next((n for n in mido.get_input_names() if 'AU_MTC' in n), None)
+        if not port_name: return
+        
+        display = [" "] * 12
+        with mido.open_input(port_name) as inport:
+            for msg in inport:
+                # 监听 Mackie Control 的时间码位 (CC 64-75)
+                if msg.type == 'control_change' and 64 <= msg.control <= 75:
+                    display[75 - msg.control] = chr(msg.value)
+                    raw = "".join(display).replace(" ", "0")
+                    try:
+                        # 转换 HHMMSSFF 到总秒数 (假设 30fps)
+                        total_sec = int(raw[4:6]) + int(raw[2:4])*60 + int(raw[0:2])*3600 + int(raw[6:8])/30.0
+                        self.time_signal.emit(total_sec)
+                    except: pass
+
+class LyricsApp(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.lyrics = []
+        self.labels = []
+        self.init_ui()
+        self.monitor = MidiMonitor()
+        self.monitor.time_signal.connect(self.update_ui)
+        self.monitor.start()
+
+    def init_ui(self):
+        self.setWindowTitle("AU 字幕同步器")
+        self.setWindowFlags(Qt.WindowType.WindowStaysOnTopHint) # 始终置顶
+        self.resize(500, 400)
+        
+        layout = QVBoxLayout(self)
+        self.btn = QPushButton("加载 LRC 字幕")
+        self.btn.clicked.connect(self.load_lrc)
+        layout.addWidget(self.btn)
+
+        self.scroll = QScrollArea()
+        self.content = QWidget()
+        self.lyric_layout = QVBoxLayout(self.content)
+        self.scroll.setWidget(self.content)
+        self.scroll.setWidgetResizable(True)
+        layout.addWidget(self.scroll)
+
+    def load_lrc(self):
+        path, _ = QFileDialog.getOpenFileName(self, "选择字幕", "", "LRC (*.lrc)")
+        if not path: return
+        with open(path, 'r', encoding='utf-8') as f:
+            for line in f:
+                match = re.search(r'\[(\d+):(\d+\.\d+)\](.*)', line)
+                if match:
+                    t = int(match.group(1))*60 + float(match.group(2))
+                    self.lyrics.append((t, match.group(3).strip()))
+                    lbl = QLabel(match.group(3).strip())
+                    lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                    lbl.setStyleSheet("color: gray; font-size: 16px; padding: 10px;")
+                    self.lyric_layout.addWidget(lbl)
+                    self.labels.append(lbl)
+
+    def update_ui(self, cur_time):
+        idx = 0
+        for i, (t, _) in enumerate(self.lyrics):
+            if t <= cur_time: idx = i
+            else: break
+        
+        for i, lbl in enumerate(self.labels):
+            if i == idx:
+                lbl.setStyleSheet("color: white; font-size: 24px; font-weight: bold;")
+                self.scroll.ensureWidgetVisible(lbl, 0, 150) # 自动滚动到中间位置
+            else:
+                lbl.setStyleSheet("color: #666; font-size: 16px;")
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    ex = LyricsApp()
+    ex.show()
+    sys.exit(app.exec())
+
+```
+
+---
+
+## ✅ 第四部分：运行与调试验证
+
+1. **启动 loopMIDI**（确保端口状态为已开启）。
+2. **启动 Adobe Audition**（确保操纵面已配置 Mackie Control）。
+3. **运行 Python 脚本**。
+4. **在脚本中加载 LRC 文件**。
+5. **在 Audition 中点击播放**。
+
+**调试 Tip：** 如果脚本没反应，请先用 **MIDI-OX** 确认是否有 `B0 4x xx` 格式的数据流出。如果有，说明是脚本的端口名称匹配问题。
+
+---
+
+## 🚀 未来扩展构想
+
+如果你后续需要更复杂的动画（如你提到的“头部停留、中部滚动”），你可以将 `update_ui` 中的 `ensureWidgetVisible` 替换为自定义的滚动条数值计算。
+
+**需要我为你提供一个能处理“非对称滚动”逻辑的进阶版算法函数吗？**

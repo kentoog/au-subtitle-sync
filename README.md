@@ -1,72 +1,94 @@
-# AU 字幕外挂同步程序
+# Adobe Audition (AU) 实时字幕同步器 (AU Subtitle Sync)
 
-Adobe Audition 实时字幕同步方案，基于 MIDI-Mackie 桥接方案。
+🎨 **这是一个利用 MIDI 信号实现 Adobe Audition 与外部 LRC 字幕实时同步显示的实用工具。**
 
-## 功能特性
+由于 Adobe Audition 本身对实时字幕显示的支持有限，本项目通过 **Mackie Control (MIDI)** 协议将 AU 的播放头时间实时同步到外部 Python 悬浮看板中，从而实现高效率的配音、有声书录制或后期字幕校对。
 
-- 实时接收 Audition 时间轴信号
-- 同步显示 LRC 格式字幕
-- 独立置顶字幕看板窗口
-- 可自定义颜色、字体大小、透明度
-- 支持平铺模式和普通模式
-- 自动滚动高亮当前播放行
+![演示图](https://your-image-url-here.png) *(此处可添加应用运行截图)*
 
-## 环境要求
+## ✨ 核心特性
 
-- Windows 系统
-- Python 3.10+
-- Adobe Audition
-- loopMIDI (虚拟 MIDI 驱动)
+- **高精度同步**：基于 MIDI 时间码 (MTC) 的 Mackie 桥接方案，延迟极低。
+- **独立置顶窗口**：透明悬浮看板，可缩放、可置顶，适配各种直播或录屏环境。
+- **LRC 全面支持**：自动解析标准 LRC 文件，支持逐行滚动。
+- **自定义模板**：支持“平铺模式”与“普通模式”切换，自定义前/背景色及字号。
+- **多版本适配**：理论上支持所有具备 Mackie Control 输出能力的 Adobe Audition 版本。
 
-## 安装与配置
+---
 
-### 1. 安装虚拟 MIDI 驱动
+## 🛠️ 环境准备
 
-下载并安装 [loopMIDI](https://www.tobias-erichsen.de/software/loopmidi.html)，创建一个新端口，命名为 `AU_MTC_OUT`。
+### 1. 安装虚拟 MIDI 驱动 (必备)
+由于 Audition 不能直接向 Python 脚本发送数据，需要一个“虚拟管道”。
 
-### 2. 安装 Python 依赖
+- **推荐软件**：[loopMIDI](https://www.tobias-erichsen.de/software/loopmidi.html)
+- **配置步骤**：
+  1. 安装并打开 loopMIDI。
+  2. 点击 `+` 创建一个新端口，命名为 **`AU_MTC`** (程序会自动查找包含该关键字的任务)。
+
+### 2. Python 环境
+本项目需要 Python 3.10+ 环境，运行以下命令安装依赖：
 
 ```bash
-pip install -r requirements.txt
+pip install mido python-rtmidi PyQt6 psutil
 ```
 
-### 3. 配置 Adobe Audition
+---
 
-1. 打开 `编辑` -> `首选项` -> `操纵面`
-2. 点击 `添加`，选择 `Mackie Control`
-3. 配置端口：
-   - MIDI 输入：无
-   - MIDI 输出：选择 `AU_MTC_OUT`
+## 🎚️ Adobe Audition 内部配置
 
-## 使用方法
+这是让 Audition “发送”时间轴数据的关键：
 
-1. 启动 loopMIDI（确保端口已开启）
-2. 启动 Adobe Audition（确保操纵面已配置）
-3. 运行主程序：
+1. 打开 **编辑 (Edit)** -> **首选项 (Preferences)** -> **操纵面 (Control Surface)**。
+2. 点击 **添加 (Add)**，在设备类中选择 **Mackie Control**。
+3. 点击 **配置 (Configure)**：
+   - **MIDI 输入**：保持“无 (None)”。
+   - **MIDI 输出**：选择刚才在 loopMIDI 中创建的 **`AU_MTC`** 端口。
+4. 点击“确定”保存。此时当你播放音频时，Audition 就会自动广播时间信号。
+
+---
+
+## 🚀 启动与使用
+
+1. **运行程序**：
    ```bash
    python 字幕时间轴接收同步.py
    ```
-4. 点击 `加载 LRC` 按钮加载字幕文件
-5. 在 Audition 中播放音频，字幕将自动同步
+   或者直接运行打包好的 `AU字幕同步.exe`。
 
-## 项目结构
+2. **加载字幕**：
+   - 点击“加载 LRC”按钮，选择您的 `.lrc` 文件。
 
-```
-.
-├── 字幕时间轴接收同步.py    # 主程序
-├── build.py                  # 打包脚本
-├── requirements.txt          # Python 依赖
-└── README.md                 # 说明文档
-```
+3. **开始同步**：
+   - 在 Audition 中点击播放，看板会自动跟随时间轴滚动。
 
-## 打包成 exe
+4. **个性化调节**：
+   - 在主主控界面调节透明度、字号和颜色。
+   - 使用“平铺”模式查看更多上下文。
 
-使用 PyInstaller 打包：
+---
+
+## 📦 打包说明
+
+如果您需要打包成单文件 `.exe`，可以使用 PyInstaller：
 
 ```bash
-python build.py
+pyinstaller --noconsole --onefile --name "AU字幕同步" 字幕时间轴接收同步.py
 ```
 
-## 许可证
+---
 
-MIT License
+## 📄 开源协议
+
+本项目采用 [MIT License](LICENSE) 开源。
+
+---
+
+## 🙏 鸣谢
+
+- 感谢开源社区提供的 `mido` 与 `PyQt6`。
+- 设计思路参考了专业的 Mackie Control 通讯协议文档。
+
+---
+
+> 如果您觉得本项目对您有帮助，欢迎在 Gitee/GitHub 点个 Star！⭐️

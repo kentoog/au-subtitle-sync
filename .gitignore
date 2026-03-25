@@ -1,24 +1,27 @@
-build/
+# Build and Distribution
+AU字幕同步.exe
 dist/
-*.exe
+build/
 *.spec
 *.pyc
+*.pyo
 __pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-env/
-venv/
-ENV/
-*.egg-info/
-.eggs/
-.pytest_cache/
+
+# IDE and Editor
 .vscode/
+.idea/
+*.swp
+*.swo
+
+# OS related
 *.lnk
+Thumbs.db
+Desktop.ini
+
+# Source Code Copies and Backups
+*copy*.py
+*.bak
+*.tmp
+
+# Data files (LRC/Samples)
 *.lrc
-loopMIDISetup_*/
-额外程序/
-设计过程.txt
-*.txt
-!requirements.txt
